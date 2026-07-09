@@ -1,2 +1,16 @@
 # Guangzhou_Community_Governance_GraphRag
 广州市社区治理知识图谱及问答系统
+第一步
+进入项目目录并安装依赖
+cd f:\xxxx(你的路径)\code
+pip install -r requirements.txt
+
+第二步
+cd code
+构建知识图谱（需先启动 Neo4j）：
+python build_kg.py
+
+第三步
+启动问答服务：
+python app.py
+浏览器访问：http://localhost:5000
