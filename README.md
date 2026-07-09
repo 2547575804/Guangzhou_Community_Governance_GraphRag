@@ -1,5 +1,4 @@
-# Guangzhou_Community_Governance_GraphRag
-广州市社区治理知识图谱及问答系统
+# Guangzhou_Community_Governance_GraphRag广州市社区治理知识图谱及问答系统
 
 第一步
 进入项目目录并安装依赖
