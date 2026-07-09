@@ -123,6 +123,20 @@ class Neo4jService:
                     """,
                 ),
                 (
+                    "区关联",
+                    """
+                    MATCH (d:District)
+                    WHERE d.name CONTAINS $kw
+                    OPTIONAL MATCH (d)<-[:LOCATED_IN]-(w:WorkOrder)
+                    OPTIONAL MATCH (d)<-[:LOCATED_IN]-(n:News)
+                    OPTIONAL MATCH (d)<-[:LOCATED_IN]-(cc:CourtCase)
+                    RETURN d.name AS entity, collect(DISTINCT w.title)[..3] AS workorders,
+                           collect(DISTINCT n.title)[..3] AS news,
+                           collect(DISTINCT cc.case_number)[..3] AS court_cases
+                    LIMIT $limit
+                    """,
+                ),
+                (
                     "跨域关联",
                     """
                     MATCH (w:WorkOrder)-[r:RELATED_NEWS|RELATED_COURTCASE]->(target)
@@ -149,12 +163,17 @@ class Neo4jService:
         prompt = f"""你是 Neo4j Cypher 专家。根据用户问题生成只读 Cypher 查询。
 数据库模式：
 - WorkOrder(id,title,content,conflict_type) -[:LOCATED_IN]-> City
+- WorkOrder -[:LOCATED_IN]-> District
 - WorkOrder -[:HANDLED_BY]-> Department
 - WorkOrder -[:HAS_CONFLICT_TYPE]-> ConflictType
 - CourtCase(id,case_number,dispute_type,key_facts) -[:LOCATED_IN]-> City
+- CourtCase -[:LOCATED_IN]-> District
 - CourtCase -[:APPLIES_LAW]-> Law
-- News(id,title,content,conflict_type) -[:REPORTED_BY]-> Media
+- News(id,title,content,conflict_type) -[:LOCATED_IN]-> City
+- News -[:LOCATED_IN]-> District
+- News -[:REPORTED_BY]-> Media
 - News -[:INVOLVES]-> Department
+- District -[:BELONGS_TO]-> City
 - WorkOrder -[:RELATED_NEWS]-> News
 - WorkOrder -[:RELATED_COURTCASE]-> CourtCase
 

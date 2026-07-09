@@ -12,6 +12,11 @@ from neo4j import GraphDatabase
 
 import config
 
+GUANGZHOU_DISTRICTS = {
+    "天河区", "海珠区", "白云区", "番禺区", "黄埔区",
+    "花都区", "南沙区", "荔湾区", "越秀区", "增城区", "从化区"
+}
+
 
 def extract_laws(text: str) -> list[str]:
     if not text or pd.isna(text):
@@ -24,6 +29,17 @@ def split_departments(text: str) -> list[str]:
         return []
     parts = re.split(r"[、,，;；]", str(text))
     return [p.strip() for p in parts if p.strip()]
+
+
+def extract_districts(text: str) -> list[str]:
+    if not text or pd.isna(text):
+        return []
+    text = str(text)
+    found = []
+    for district in GUANGZHOU_DISTRICTS:
+        if district in text:
+            found.append(district)
+    return list(dict.fromkeys(found))
 
 
 class KnowledgeGraphBuilder:
@@ -49,6 +65,7 @@ class KnowledgeGraphBuilder:
             "CREATE CONSTRAINT courtcase_id IF NOT EXISTS FOR (c:CourtCase) REQUIRE c.id IS UNIQUE",
             "CREATE CONSTRAINT news_id IF NOT EXISTS FOR (n:News) REQUIRE n.id IS UNIQUE",
             "CREATE CONSTRAINT city_name IF NOT EXISTS FOR (c:City) REQUIRE c.name IS UNIQUE",
+            "CREATE CONSTRAINT district_name IF NOT EXISTS FOR (d:District) REQUIRE d.name IS UNIQUE",
             "CREATE CONSTRAINT dept_name IF NOT EXISTS FOR (d:Department) REQUIRE d.name IS UNIQUE",
             "CREATE CONSTRAINT media_name IF NOT EXISTS FOR (m:Media) REQUIRE m.name IS UNIQUE",
             "CREATE CONSTRAINT law_name IF NOT EXISTS FOR (l:Law) REQUIRE l.name IS UNIQUE",
@@ -70,6 +87,10 @@ class KnowledgeGraphBuilder:
             dept = str(row.get("department", "")).strip()
             conflict = str(row.get("conflict_type", "")).strip()
 
+            content_text = str(row.get("content", ""))
+            title_text = str(row.get("title", ""))
+            districts = extract_districts(f"{title_text} {content_text} {dept}")
+
             self.run_query(
                 """
                 MERGE (w:WorkOrder {id: $id})
@@ -84,8 +105,8 @@ class KnowledgeGraphBuilder:
                 """,
                 {
                     "id": case_id,
-                    "title": str(row.get("title", "")),
-                    "content": str(row.get("content", "")),
+                    "title": title_text,
+                    "content": content_text,
                     "process": str(row.get("process", "")),
                     "result": str(row.get("result", "")),
                     "conflict_type": conflict,
@@ -103,6 +124,17 @@ class KnowledgeGraphBuilder:
                     MERGE (w)-[:LOCATED_IN]->(c)
                     """,
                     {"id": case_id, "city": city},
+                )
+
+            for district in districts:
+                self.run_query(
+                    """
+                    MERGE (d:District {name: $district})
+                    WITH d
+                    MATCH (w:WorkOrder {id: $id})
+                    MERGE (w)-[:LOCATED_IN]->(d)
+                    """,
+                    {"id": case_id, "district": district},
                 )
 
             if dept:
@@ -138,6 +170,10 @@ class KnowledgeGraphBuilder:
             dispute = str(row.get("dispute_type", "")).strip()
             laws = extract_laws(str(row.get("applicable_law", "")))
 
+            key_facts_text = str(row.get("key_facts", ""))
+            court_opinion_text = str(row.get("court_opinion", ""))
+            districts = extract_districts(f"{key_facts_text} {court_opinion_text}")
+
             self.run_query(
                 """
                 MERGE (c:CourtCase {id: $id})
@@ -155,8 +191,8 @@ class KnowledgeGraphBuilder:
                     "id": case_id,
                     "case_number": str(row.get("case_number", "")),
                     "dispute_type": dispute,
-                    "key_facts": str(row.get("key_facts", "")),
-                    "court_opinion": str(row.get("court_opinion", "")),
+                    "key_facts": key_facts_text,
+                    "court_opinion": court_opinion_text,
                     "applicable_law": str(row.get("applicable_law", "")),
                     "judgment_result": str(row.get("judgment_result", "")),
                     "judgment_date": str(row.get("judgment_date", "")),
@@ -173,6 +209,17 @@ class KnowledgeGraphBuilder:
                     MERGE (c)-[:LOCATED_IN]->(city)
                     """,
                     {"id": case_id, "city": city},
+                )
+
+            for district in districts:
+                self.run_query(
+                    """
+                    MERGE (d:District {name: $district})
+                    WITH d
+                    MATCH (c:CourtCase {id: $id})
+                    MERGE (c)-[:LOCATED_IN]->(d)
+                    """,
+                    {"id": case_id, "district": district},
                 )
 
             if dispute:
@@ -209,6 +256,11 @@ class KnowledgeGraphBuilder:
             conflict = str(row.get("conflict_type", "")).strip()
             departments = split_departments(str(row.get("departments", "")))
 
+            title_text = str(row.get("title", ""))
+            content_text = str(row.get("content", ""))
+            departments_text = str(row.get("departments", ""))
+            districts = extract_districts(f"{title_text} {content_text} {departments_text}")
+
             self.run_query(
                 """
                 MERGE (n:News {id: $id})
@@ -225,11 +277,11 @@ class KnowledgeGraphBuilder:
                 """,
                 {
                     "id": news_id,
-                    "title": str(row.get("title", "")),
-                    "content": str(row.get("content", "")),
+                    "title": title_text,
+                    "content": content_text,
                     "conflict_type": conflict,
                     "solution": str(row.get("solution", "")),
-                    "departments": str(row.get("departments", "")),
+                    "departments": departments_text,
                     "note": str(row.get("note", "")),
                     "report_date": str(row.get("report_date", "")),
                     "original_url": str(row.get("original_url", "")),
@@ -246,6 +298,17 @@ class KnowledgeGraphBuilder:
                     MERGE (n)-[:LOCATED_IN]->(c)
                     """,
                     {"id": news_id, "city": city},
+                )
+
+            for district in districts:
+                self.run_query(
+                    """
+                    MERGE (d:District {name: $district})
+                    WITH d
+                    MATCH (n:News {id: $id})
+                    MERGE (n)-[:LOCATED_IN]->(d)
+                    """,
+                    {"id": news_id, "district": district},
                 )
 
             if media:
@@ -316,6 +379,37 @@ class KnowledgeGraphBuilder:
             MATCH (cc:CourtCase)-[:HAS_DISPUTE_TYPE]->(dt:DisputeType)
             WHERE ct.name CONTAINS dt.name OR dt.name CONTAINS ct.name
             MERGE (n)-[:RELATED_COURTCASE {relation: '冲突/纠纷类型相关'}]->(cc)
+            """
+        )
+
+        print("  创建区-城市关联...")
+        self.run_query(
+            """
+            MATCH (d:District)
+            MERGE (c:City {name: '广州'})
+            MERGE (d)-[:BELONGS_TO]->(c)
+            """
+        )
+
+        print("  创建同区跨数据源关联...")
+        self.run_query(
+            """
+            MATCH (w:WorkOrder)-[:LOCATED_IN]->(d:District)<-[:LOCATED_IN]-(n:News)
+            MERGE (w)-[:RELATED_NEWS {relation: '同区案例'}]->(n)
+            """
+        )
+
+        self.run_query(
+            """
+            MATCH (w:WorkOrder)-[:LOCATED_IN]->(d:District)<-[:LOCATED_IN]-(cc:CourtCase)
+            MERGE (w)-[:RELATED_COURTCASE {relation: '同区案例'}]->(cc)
+            """
+        )
+
+        self.run_query(
+            """
+            MATCH (n:News)-[:LOCATED_IN]->(d:District)<-[:LOCATED_IN]-(cc:CourtCase)
+            MERGE (n)-[:RELATED_COURTCASE {relation: '同区案例'}]->(cc)
             """
         )
 
