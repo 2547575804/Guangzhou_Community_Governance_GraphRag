@@ -1,5 +1,6 @@
 # Guangzhou_Community_Governance_GraphRag
 广州市社区治理知识图谱及问答系统
+
 第一步
 进入项目目录并安装依赖
 cd f:\xxxx(你的路径)\code
