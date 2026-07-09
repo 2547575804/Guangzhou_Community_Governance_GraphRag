@@ -1,0 +1,3 @@
+SourceNode,RelationshipType,TargetNode,SourceKey,TargetKey
+WorkOrder,LOCATED_IN,City,workorder_id,city_name
+WorkOrder,HANDLED_BY,Department,workorder_id,department_name

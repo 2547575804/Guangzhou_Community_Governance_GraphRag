@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>广州市社区治理案例 · 知识图谱问答系统</title>
+    <style>
+        :root {
+            --primary: #1a5f7a;
+            --primary-light: #2d8cb8;
+            --bg: #f0f4f8;
+            --card: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --user-bg: #e8f4fc;
+            --bot-bg: #f8fafc;
+            --accent-kb: #059669;
+            --accent-graph: #7c3aed;
+            --accent-llm: #d97706;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 1.25rem 2rem;
+            box-shadow: 0 2px 12px rgba(26, 95, 122, 0.25);
+        }
+
+        header h1 { font-size: 1.4rem; font-weight: 600; }
+        header p { font-size: 0.85rem; opacity: 0.9; margin-top: 0.25rem; }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 90px);
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            font-size: 0.78rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        .status-item.ok { color: var(--accent-kb); border-color: #a7f3d0; background: #ecfdf5; }
+        .status-item.warn { color: var(--accent-llm); border-color: #fde68a; background: #fffbeb; }
+
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .message { margin-bottom: 1.25rem; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+        .message .role {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .message.user .bubble {
+            background: var(--user-bg);
+            border-left: 3px solid var(--primary-light);
+        }
+
+        .message.bot .bubble {
+            background: var(--bot-bg);
+            border-left: 3px solid var(--accent-kb);
+        }
+
+        .bubble {
+            padding: 0.9rem 1.1rem;
+            border-radius: 8px;
+            line-height: 1.65;
+            font-size: 0.92rem;
+            word-break: break-word;
+        }
+
+        .bubble.plain-text { white-space: pre-wrap; }
+
+        /* Markdown 渲染样式 */
+        .markdown-body { line-height: 1.7; font-size: 0.92rem; }
+        .markdown-body > *:first-child { margin-top: 0 !important; }
+        .markdown-body > *:last-child { margin-bottom: 0 !important; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3,
+        .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+            margin: 1em 0 0.5em;
+            font-weight: 600;
+            line-height: 1.4;
+            color: var(--text);
+        }
+        .markdown-body h2 { font-size: 1.15rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+        .markdown-body h3 { font-size: 1.05rem; color: var(--primary); }
+        .markdown-body p { margin: 0.6em 0; }
+        .markdown-body ul, .markdown-body ol { margin: 0.5em 0; padding-left: 1.5em; }
+        .markdown-body li { margin: 0.25em 0; }
+        .markdown-body li > p { margin: 0.2em 0; }
+        .markdown-body blockquote {
+            margin: 0.6em 0;
+            padding: 0.5em 0.8em;
+            border-left: 3px solid var(--primary-light);
+            background: #f1f5f9;
+            color: var(--muted);
+        }
+        .markdown-body blockquote p { margin: 0.3em 0; }
+        .markdown-body code {
+            padding: 0.15em 0.4em;
+            background: #e2e8f0;
+            border-radius: 4px;
+            font-size: 0.88em;
+            font-family: Consolas, "Courier New", monospace;
+        }
+        .markdown-body pre {
+            margin: 0.6em 0;
+            padding: 0.8em 1em;
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        .markdown-body pre code {
+            padding: 0;
+            background: none;
+            color: inherit;
+            font-size: 0.85em;
+        }
+        .markdown-body table {
+            width: 100%;
+            margin: 0.6em 0;
+            border-collapse: collapse;
+            font-size: 0.88em;
+        }
+        .markdown-body th, .markdown-body td {
+            border: 1px solid var(--border);
+            padding: 0.45em 0.65em;
+            text-align: left;
+        }
+        .markdown-body th { background: #f1f5f9; font-weight: 600; }
+        .markdown-body tr:nth-child(even) { background: #f8fafc; }
+        .markdown-body strong { color: var(--text); font-weight: 600; }
+        .markdown-body a { color: var(--primary-light); text-decoration: none; }
+        .markdown-body a:hover { text-decoration: underline; }
+        .markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
+
+        .intent-badge {
+            display: inline-block;
+            font-size: 0.72rem;
+            padding: 0.15rem 0.55rem;
+            border-radius: 4px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            margin-bottom: 0.5rem;
+        }
+
+        .branches {
+            margin-top: 0.75rem;
+            border-top: 1px dashed var(--border);
+            padding-top: 0.75rem;
+        }
+
+        .branch-toggle {
+            font-size: 0.78rem;
+            color: var(--primary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .branch-toggle:hover { text-decoration: underline; }
+
+        .branch-panel {
+            display: none;
+            margin-top: 0.5rem;
+        }
+
+        .branch-panel.open { display: block; }
+
+        .branch-item {
+            margin-bottom: 0.6rem;
+            padding: 0.6rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        .branch-item .markdown-body { font-size: 0.8rem; }
+
+        .branch-item.kb { background: #ecfdf5; border-left: 3px solid var(--accent-kb); }
+        .branch-item.graph { background: #f5f3ff; border-left: 3px solid var(--accent-graph); }
+        .branch-item.llm { background: #fffbeb; border-left: 3px solid var(--accent-llm); }
+
+        .branch-item .branch-title {
+            font-weight: 600;
+            font-size: 0.75rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-end;
+        }
+
+        .input-area textarea {
+            flex: 1;
+            padding: 0.85rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.92rem;
+            resize: none;
+            height: 56px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-area textarea:focus { border-color: var(--primary-light); }
+
+        .input-area button {
+            padding: 0 1.5rem;
+            height: 56px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.92rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .input-area button:hover:not(:disabled) { background: var(--primary-light); }
+        .input-area button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .examples {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .example-chip {
+            font-size: 0.78rem;
+            padding: 0.3rem 0.7rem;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            cursor: pointer;
+            color: var(--muted);
+            transition: all 0.2s;
+        }
+
+        .example-chip:hover {
+            border-color: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .loading { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--muted); }
+        .loading::after {
+            content: "";
+            width: 14px; height: 14px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>广州市社区治理案例 · 知识图谱问答系统</h1>
+        <p>融合 12345 热线案例 · 法律文书 · 新闻报道 · Neo4j 知识图谱 · DeepSeek 大模型</p>
+    </header>
+
+    <div class="container">
+        <div class="status-bar" id="statusBar">
+            <span class="status-item" id="statusNeo4j">Neo4j: 检测中...</span>
+            <span class="status-item" id="statusLLM">DeepSeek: 检测中...</span>
+            <span class="status-item" id="statusKB">知识库: 检测中...</span>
+        </div>
+
+        <div class="examples">
+            <span class="example-chip" data-q="广州市有哪些环境卫生类的12345案例？">环境卫生案例</span>
+            <span class="example-chip" data-q="哪些部门处理过物业矛盾相关案例？">部门关联推理</span>
+            <span class="example-chip" data-q="高空坠物相关法律文书适用了哪些法律？">法律适用查询</span>
+            <span class="example-chip" data-q="什么是社区治理中的多元共治？">概念解释</span>
+        </div>
+
+        <div class="chat-area" id="chatArea">
+            <div class="message bot">
+                <div class="role">智能助手</div>
+                <div class="bubble markdown-body">您好！我是广州市社区治理案例问答助手。您可以询问具体案例、部门关联、法律适用或社区治理相关问题。系统将自动识别意图，并行执行知识库检索、图谱推理和 LLM 应答，并整合生成最终回复。</div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <textarea id="questionInput" placeholder="请输入您的问题，例如：荔湾区有哪些公共设施投诉案例？" rows="2"></textarea>
+            <button id="sendBtn" onclick="sendQuestion()">发送</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+    <script>
+        const chatArea = document.getElementById('chatArea');
+        const questionInput = document.getElementById('questionInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        marked.setOptions({
+            gfm: true,
+            breaks: true,
+            headerIds: false,
+            mangle: false,
+        });
+
+        function renderMarkdown(text) {
+            if (!text) return '';
+            const raw = marked.parse(text);
+            return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
+        }
+
+        async function checkHealth() {
+            try {
+                const res = await fetch('/api/health');
+                const data = await res.json();
+                setStatus('statusNeo4j', data.neo4j_connected, 'Neo4j', '已连接', '未连接');
+                setStatus('statusLLM', data.llm_available, 'DeepSeek', '已配置', '未配置 API Key');
+                document.getElementById('statusKB').textContent = `知识库: ${data.kb_documents} 篇文档`;
+                document.getElementById('statusKB').className = 'status-item ok';
+            } catch (e) {
+                ['statusNeo4j', 'statusLLM', 'statusKB'].forEach(id => {
+                    document.getElementById(id).textContent = id + ': 服务不可用';
+                });
+            }
+        }
+
+        function setStatus(id, ok, label, okText, failText) {
+            const el = document.getElementById(id);
+            el.textContent = `${label}: ${ok ? okText : failText}`;
+            el.className = ok ? 'status-item ok' : 'status-item warn';
+        }
+
+        function appendMessage(role, content, options = {}) {
+            const { isHtml = false, isMarkdown = false } = options;
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+
+            let bubbleClass = 'bubble';
+            let bubbleContent;
+            if (isHtml) {
+                bubbleContent = content;
+            } else if (isMarkdown) {
+                bubbleClass += ' markdown-body';
+                bubbleContent = renderMarkdown(content);
+            } else {
+                bubbleClass += ' plain-text';
+                bubbleContent = escapeHtml(content);
+            }
+
+            div.innerHTML = `<div class="role">${role === 'user' ? '您' : '智能助手'}</div>
+                <div class="${bubbleClass}">${bubbleContent}</div>`;
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return div;
+        }
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+
+        function appendBotResponse(data) {
+            const intent = data.intent || {};
+            const branches = data.branches || {};
+            const branchId = 'branches_' + Date.now();
+
+            const div = document.createElement('div');
+            div.className = 'message bot';
+            div.innerHTML = `<div class="role">智能助手</div><div class="bubble"></div>`;
+            const bubble = div.querySelector('.bubble');
+
+            const badge = document.createElement('span');
+            badge.className = 'intent-badge';
+            badge.textContent = `意图: ${data.intent_label || ''} (置信度 ${(intent.confidence * 100).toFixed(0)}%)`;
+            bubble.appendChild(badge);
+
+            const answerEl = document.createElement('div');
+            answerEl.className = 'markdown-body';
+            answerEl.innerHTML = renderMarkdown(data.answer || '');
+            bubble.appendChild(answerEl);
+
+            const branchesWrap = document.createElement('div');
+            branchesWrap.className = 'branches';
+            branchesWrap.innerHTML = `
+                <span class="branch-toggle" onclick="toggleBranches('${branchId}')">▶ 查看三个分支详情</span>
+                <div class="branch-panel" id="${branchId}"></div>`;
+            bubble.appendChild(branchesWrap);
+
+            const panel = branchesWrap.querySelector('.branch-panel');
+            const mapping = [
+                ['knowledge_base', 'kb', '分支1-知识库查询'],
+                ['graph_reasoning', 'graph', '分支2-推理查询'],
+                ['direct_llm', 'llm', '分支3-LLM应答'],
+            ];
+            for (const [key, cls, title] of mapping) {
+                const b = branches[key];
+                if (!b) continue;
+                const item = document.createElement('div');
+                item.className = `branch-item ${cls}`;
+                item.innerHTML = `<div class="branch-title">${title}</div>`;
+                const contentEl = document.createElement('div');
+                contentEl.className = 'markdown-body';
+                contentEl.innerHTML = renderMarkdown(b.content || '');
+                item.appendChild(contentEl);
+
+                // 显示生成的 Cypher 语句
+                if (key === 'graph_reasoning' && b.cypher) {
+                    const cypherEl = document.createElement('div');
+                    cypherEl.style.marginTop = '0.5rem';
+                    cypherEl.innerHTML = `<div class="branch-title">生成的 Cypher 查询语句：</div>
+                        <pre style="background: #f1f5f9; color: #334155; padding: 0.6rem 0.8rem; border-radius: 6px; overflow-x: auto; font-size: 0.78rem; margin: 0.3rem 0; border: 1px solid #e2e8f0;"><code>${escapeHtml(b.cypher)}</code></pre>`;
+                    item.appendChild(cypherEl);
+                }
+
+                panel.appendChild(item);
+            }
+
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function toggleBranches(id) {
+            const panel = document.getElementById(id);
+            panel.classList.toggle('open');
+            const toggle = panel.previousElementSibling;
+            toggle.textContent = panel.classList.contains('open') ? '▼ 收起分支详情' : '▶ 查看三个分支详情';
+        }
+
+        async function sendQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            appendMessage('user', question);
+            questionInput.value = '';
+            sendBtn.disabled = true;
+
+            const loadingDiv = appendMessage('bot', '', { isHtml: true });
+            loadingDiv.querySelector('.bubble').innerHTML = '<span class="loading">正在分析意图并整合三个分支...</span>';
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question }),
+                });
+                const data = await res.json();
+                loadingDiv.remove();
+
+                if (data.error) {
+                    appendMessage('bot', '错误: ' + data.error);
+                } else {
+                    appendBotResponse(data);
+                }
+            } catch (e) {
+                loadingDiv.remove();
+                appendMessage('bot', '请求失败: ' + e.message);
+            } finally {
+                sendBtn.disabled = false;
+                questionInput.focus();
+            }
+        }
+
+        questionInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendQuestion();
+            }
+        });
+
+        document.querySelectorAll('.example-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                questionInput.value = chip.dataset.q;
+                questionInput.focus();
+            });
+        });
+
+        checkHealth();
+    </script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+SourceNode,RelationshipType,TargetNode,SourceKey,TargetKey
+News,LOCATED_IN,City,news_id,city_name
+News,REPORTED_BY,Media,news_id,media_name
+News,INVOLVES,Department,news_id,department_name

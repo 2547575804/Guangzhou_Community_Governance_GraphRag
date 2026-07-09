@@ -1,0 +1,3 @@
+SourceNode,RelationshipType,TargetNode,SourceKey,TargetKey
+CourtCase,LOCATED_IN,City,case_id,city_name
+CourtCase,APPLIES_LAW,Law,case_id,law_name
